@@ -271,6 +271,14 @@ def get_class_obj_and_candidates(
     """Simple helper method to retrieve class object of module as well as potential parent class objects"""
     component_folder = os.path.join(cache_dir, component_name)
 
+    print("get_class_obj_and_candidates",
+          "library_name:",library_name,
+          "class_name:", class_name,
+          "importable_classes:", importable_classes,
+          "pipelines:", pipelines,
+          "is_pipeline_module:", is_pipeline_module,
+          "component_name:", component_name,)
+
     if is_pipeline_module:
         pipeline_module = getattr(pipelines, library_name)
 
@@ -396,6 +404,11 @@ def load_sub_model(
     for class_name, class_candidate in class_candidates.items():
         if class_candidate is not None and issubclass(class_obj, class_candidate):
             load_method_name = importable_classes[class_name][1]
+
+    print("load_sub_model.", 
+          "class_obj:", class_obj,
+          "load_method_name:",load_method_name,
+          )
 
     # if load method name is None, then we have a dummy module -> raise Error
     if load_method_name is None:

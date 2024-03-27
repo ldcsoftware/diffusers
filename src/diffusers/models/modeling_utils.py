@@ -584,6 +584,8 @@ class ModelMixin(torch.nn.Module, PushToHubMixin):
             **kwargs,
         )
 
+        print("model load config.", "config:", config)
+
         # load model
         model_file = None
         if from_flax:
@@ -601,6 +603,7 @@ class ModelMixin(torch.nn.Module, PushToHubMixin):
                 user_agent=user_agent,
                 commit_hash=commit_hash,
             )
+            print("flax model_file:", model_file)
             model = cls.from_config(config, **unused_kwargs)
 
             # Convert the weights
@@ -624,6 +627,7 @@ class ModelMixin(torch.nn.Module, PushToHubMixin):
                         user_agent=user_agent,
                         commit_hash=commit_hash,
                     )
+                    print("_get_model_file model_file:", model_file)
                 except IOError as e:
                     if not allow_pickle:
                         raise e
@@ -653,6 +657,7 @@ class ModelMixin(torch.nn.Module, PushToHubMixin):
                 if device_map is None:
                     param_device = "cpu"
                     state_dict = load_state_dict(model_file, variant=variant)
+                    print("model_file:", model_file, "len dict:", len(state_dict))
                     model._convert_deprecated_attention_blocks(state_dict)
                     # move the params from meta device to cpu
                     missing_keys = set(model.state_dict().keys()) - set(state_dict.keys())
@@ -733,6 +738,7 @@ class ModelMixin(torch.nn.Module, PushToHubMixin):
                     "error_msgs": [],
                 }
             else:
+                print("not low cpu", "cls:", cls, "config:", config)
                 model = cls.from_config(config, **unused_kwargs)
 
                 state_dict = load_state_dict(model_file, variant=variant)

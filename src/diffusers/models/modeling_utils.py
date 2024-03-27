@@ -590,7 +590,11 @@ class ModelMixin(torch.nn.Module, PushToHubMixin):
             **kwargs,
         )
 
-        print("model load config.", "config:", config)
+        print("model load config.", 
+              "cls:", cls,
+              "config:", config,
+              "pretrained_model_name_or_path:", pretrained_model_name_or_path,
+              )
 
         # load model
         model_file = None
@@ -744,7 +748,6 @@ class ModelMixin(torch.nn.Module, PushToHubMixin):
                     "error_msgs": [],
                 }
             else:
-                print("not low cpu", "cls:", cls, "config:", config)
                 model = cls.from_config(config, **unused_kwargs)
 
                 state_dict = load_state_dict(model_file, variant=variant)

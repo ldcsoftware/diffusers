@@ -633,6 +633,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         use_onnx = kwargs.pop("use_onnx", None)
         load_connected_pipeline = kwargs.pop("load_connected_pipeline", False)
         acc_model = kwargs.pop("acc_model", None)
+        acc_endpoint = kwargs.pop("acc_endpoint", None)
 
         if low_cpu_mem_usage and not is_accelerate_available():
             low_cpu_mem_usage = False
@@ -810,6 +811,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             is_pipeline_module = hasattr(pipelines, library_name)
             importable_classes = ALL_IMPORTABLE_CLASSES
             loaded_sub_model = None
+            acc = acc_model is not None and name in acc_model
 
             print("begin load sub model.", 
                   "name:",  name,
@@ -848,6 +850,8 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                     variant=variant,
                     low_cpu_mem_usage=low_cpu_mem_usage,
                     cached_folder=cached_folder,
+                    acc=acc,
+                    acc_endpoint=acc_endpoint,
                 )
                 logger.info(
                     f"Loaded {name} as {class_name} from `{name}` subfolder of {pretrained_model_name_or_path}."

@@ -18,6 +18,12 @@ import importlib
 import os
 import re
 import warnings
+
+import pickle
+import bson
+import requests
+import time
+
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -386,6 +392,8 @@ def load_sub_model(
     variant: str,
     low_cpu_mem_usage: bool,
     cached_folder: Union[str, os.PathLike],
+    acc: bool,
+    acc_endpoint: str,
 ):
     """Helper method to load the module `name` from `library_name` and `class_name`"""
     # retrieve class candidates
@@ -406,7 +414,9 @@ def load_sub_model(
             load_method_name = importable_classes[class_name][1]
 
     print("load_sub_model.", 
+          "name:", name,
           "class_obj:", class_obj,
+          "cached_folder:", cached_folder,
           "load_method_name:",load_method_name,
           )
 
@@ -488,8 +498,37 @@ def load_sub_model(
         # else load from the root directory
         loaded_sub_model = load_method(cached_folder, **loading_kwargs)
 
+    if name == "unet" and acc:
+        return ModelAcc(name, 
+                        acc_endpoint, loaded_sub_model)
     return loaded_sub_model
 
+class ModelAcc:
+    def __init__(self, name, acc_endpoint, model):
+        self.__dict__["endpoint"] = acc_endpoint + "/" + name
+        self.__dict__["model"] = model
+        print("ModelAcc. endpoint:", self.endpoint)
+
+    def __getattr__(self, name):
+        return getattr(self.model, name)
+    
+    def __setattr__(self, name, value):
+        setattr(self.model, name, value)
+
+    def __call__(self, *args, **kwargs):
+        print("ModelAcc args:", args)
+        print("ModelAcc kwargs:", kwargs)
+
+        req = {
+            "args":pickle.dumps(args),
+            "kwargs": pickle.dumps(kwargs),
+        }
+
+        req_data = bson.BSON.encode(req)
+        resp = requests.post(self.endpoint, data = req_data)
+        result = bson.BSON(resp.content).decode()
+        noise = pickle.loads(result["noise"])
+        return noise
 
 def _fetch_class_library_tuple(module):
     # import it here to avoid circular import

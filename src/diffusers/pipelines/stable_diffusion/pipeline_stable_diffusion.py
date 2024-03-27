@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -891,6 +892,7 @@ class StableDiffusionPipeline(
 
         device = self._execution_device
 
+        begin = time.time()
         # 3. Encode input prompt
         lora_scale = (
             self.cross_attention_kwargs.get("scale", None) if self.cross_attention_kwargs is not None else None
@@ -923,8 +925,17 @@ class StableDiffusionPipeline(
                 self.do_classifier_free_guidance,
             )
 
+        cost = time.time() - begin
+        begin = time.time()
+        print ("xxxxx Encode input prompt cost:", cost)
+
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, device, timesteps)
+
+        cost = time.time() - begin
+        begin = time.time()
+        print ("xxxxx Prepare timesteps cost:", cost)
+
 
         # 5. Prepare latent variables
         num_channels_latents = self.unet.config.in_channels
@@ -938,6 +949,10 @@ class StableDiffusionPipeline(
             generator,
             latents,
         )
+
+        cost = time.time() - begin
+        begin = time.time()
+        print ("xxxxx Prepare latent variables cost:", cost)
 
         # 6. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
@@ -957,6 +972,10 @@ class StableDiffusionPipeline(
                 guidance_scale_tensor, embedding_dim=self.unet.config.time_cond_proj_dim
             ).to(device=device, dtype=latents.dtype)
 
+        cost = time.time() - begin
+        begin = time.time()
+        print ("xxxxx Prepare extra step kwargs cost:", cost)
+
         # 7. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         self._num_timesteps = len(timesteps)
@@ -969,6 +988,8 @@ class StableDiffusionPipeline(
                 latent_model_input = torch.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
+                begin = time.time()
+
                 # predict the noise residual
                 noise_pred = self.unet(
                     latent_model_input,
@@ -979,6 +1000,10 @@ class StableDiffusionPipeline(
                     added_cond_kwargs=added_cond_kwargs,
                     return_dict=False,
                 )[0]
+
+                cost = time.time() - begin
+                print ("xxxxx predict the noise residual cost:", cost)
+                begin = time.time()
 
                 # perform guidance
                 if self.do_classifier_free_guidance:
@@ -991,6 +1016,10 @@ class StableDiffusionPipeline(
 
                 # compute the previous noisy sample x_t -> x_t-1
                 latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]
+
+                cost = time.time() - begin
+                print ("xxxxx compute the previous noisy sample cost:", cost)
+                begin = time.time()
 
                 if callback_on_step_end is not None:
                     callback_kwargs = {}
@@ -1009,6 +1038,10 @@ class StableDiffusionPipeline(
                         step_idx = i // getattr(self.scheduler, "order", 1)
                         callback(step_idx, t, latents)
 
+        cost = time.time() - begin
+        begin = time.time()
+        print ("xxxxx Denoising loop cost:", cost)
+
         if not output_type == "latent":
             image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False, generator=generator)[
                 0
@@ -1017,6 +1050,10 @@ class StableDiffusionPipeline(
         else:
             image = latents
             has_nsfw_concept = None
+
+        cost = time.time() - begin
+        begin = time.time()
+        print ("xxxxx Vae decode cost:", cost)
 
         if has_nsfw_concept is None:
             do_denormalize = [True] * image.shape[0]

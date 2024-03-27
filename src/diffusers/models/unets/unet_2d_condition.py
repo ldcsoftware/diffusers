@@ -13,6 +13,10 @@
 # limitations under the License.
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
+import pickle
+import bson
+import requests
+import time
 
 import torch
 import torch.nn as nn
@@ -1310,3 +1314,19 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
             return (sample,)
 
         return UNet2DConditionOutput(sample=sample)
+
+class UNet2DConditionModelQ(UNet2DConditionModel):
+    def __call__(self, *args, **kwargs):
+        print("args:", args)
+        print("kwargs:", kwargs)
+
+        req = {
+            "args":pickle.dumps(args),
+            "kwargs": pickle.dumps(kwargs),
+        }
+
+        req_data = bson.BSON.encode(req)
+        resp = requests.post("http://127.0.0.1:50101/unet", data = req_data)
+        result = bson.BSON(resp.content).decode()
+        noise = pickle.loads(result["noise"])
+        return noise

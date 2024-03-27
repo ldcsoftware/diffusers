@@ -632,6 +632,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         use_safetensors = kwargs.pop("use_safetensors", None)
         use_onnx = kwargs.pop("use_onnx", None)
         load_connected_pipeline = kwargs.pop("load_connected_pipeline", False)
+        acc_model = kwargs.pop("acc_model", None)
 
         if low_cpu_mem_usage and not is_accelerate_available():
             low_cpu_mem_usage = False
@@ -690,6 +691,8 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             cached_folder = pretrained_model_name_or_path
 
         config_dict = cls.load_config(cached_folder)
+
+        print("load_config cached_folder:",cached_folder, "config_dict:",config_dict)
 
         # pop out "_ignore_files" as it is only needed for download
         config_dict.pop("_ignore_files", None)
@@ -774,6 +777,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                 return False
             if name in passed_class_obj and passed_class_obj[name] is None:
                 return False
+            print("load module check ok. name:", name,"value:",cached_folder)
             return True
 
         init_dict = {k: v for k, v in init_dict.items() if load_module(k, v)}
@@ -795,6 +799,8 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         # import it here to avoid circular import
         from diffusers import pipelines
 
+        print("init_dict:",init_dict, "passed_class_obj:",passed_class_obj)
+
         # 6. Load each module in the pipeline
         for name, (library_name, class_name) in logging.tqdm(init_dict.items(), desc="Loading pipeline components..."):
             # 6.1 - now that JAX/Flax is an official framework of the library, we might load from Flax names
@@ -804,6 +810,12 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             is_pipeline_module = hasattr(pipelines, library_name)
             importable_classes = ALL_IMPORTABLE_CLASSES
             loaded_sub_model = None
+
+            print("begin load sub model.", 
+                  "name:",  name,
+                  "library_name:", library_name,
+                  "class_name:", class_name,
+                  )
 
             # 6.3 Use passed sub model or load class_name from library_name
             if name in passed_class_obj:
@@ -1191,6 +1203,8 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         load_connected_pipeline = kwargs.pop("load_connected_pipeline", False)
         trust_remote_code = kwargs.pop("trust_remote_code", False)
 
+        print("pipeline_utils. cache_dir:", cache_dir, "local_files_only:", local_files_only)
+
         allow_pickle = False
         if use_safetensors is None:
             use_safetensors = True
@@ -1226,11 +1240,24 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             # retrieve all folder_names that contain relevant files
             folder_names = [k for k, v in config_dict.items() if isinstance(v, list) and k != "_class_name"]
 
+            print("pipeline_utils",
+                "config_file:", config_file, 
+                "config_name:", cls.config_name, 
+                "config_dict:",config_dict,
+                "folder_names:", folder_names)
+
             filenames = {sibling.rfilename for sibling in info.siblings}
             model_filenames, variant_filenames = variant_compatible_siblings(filenames, variant=variant)
 
             diffusers_module = importlib.import_module(__name__.split(".")[0])
             pipelines = getattr(diffusers_module, "pipelines")
+
+            print("pipeline_utils",
+                "config_file:", config_file, 
+                "config_name:", cls.config_name, 
+                "config_dict:",config_dict,
+                "folder_names:", folder_names,
+                "filenames:",filenames)
 
             # optionally create a custom component <> custom file mapping
             custom_components = {}
@@ -1242,6 +1269,8 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
 
                 # We compute candidate file path on the Hub. Do not use `os.path.join`.
                 candidate_file = f"{component}/{module_candidate}.py"
+
+                print("candidate_file:", candidate_file)
 
                 if candidate_file in filenames:
                     custom_components[component] = module_candidate
@@ -1262,6 +1291,8 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             # remove ignored filenames
             model_filenames = set(model_filenames) - set(ignore_filenames)
             variant_filenames = set(variant_filenames) - set(ignore_filenames)
+
+            print("model_filenames:", model_filenames, "variant_filenames:",variant_filenames, "ignore_filenames:", ignore_filenames)
 
             # if the whole pipeline is cached we don't have to ping the Hub
             if revision in DEPRECATED_REVISION_ARGS and version.parse(
@@ -1296,6 +1327,8 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                 CUSTOM_PIPELINE_FILE_NAME,
             ]
 
+            print("allow_patterns:", allow_patterns)
+
             load_pipe_from_hub = custom_pipeline is not None and f"{custom_pipeline}.py" in filenames
             load_components_from_hub = len(custom_components) > 0
 
@@ -1325,8 +1358,16 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                 cache_dir=cache_dir,
                 revision=custom_revision,
             )
+
+            print("cls:", cls, 
+                  "pipeline_class:", pipeline_class, 
+                  "custom_class_name:",custom_class_name,
+                  "custom_pipeline:",custom_pipeline)
+            
             expected_components, _ = cls._get_signature_keys(pipeline_class)
             passed_components = [k for k in expected_components if k in kwargs]
+
+            print("expected_components:", expected_components)
 
             if (
                 use_safetensors
@@ -1392,6 +1433,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             pipeline_is_cached = all((snapshot_folder / f).is_file() for f in expected_files)
 
             if pipeline_is_cached and not force_download:
+                print("snapshot_folder:", snapshot_folder)
                 # if the pipeline is cached, we can directly return it
                 # else call snapshot_download
                 return snapshot_folder
@@ -1419,6 +1461,8 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             cls_name = cls.load_config(os.path.join(cached_folder, "model_index.json")).get("_class_name", None)
             cls_name = cls_name[4:] if isinstance(cls_name, str) and cls_name.startswith("Flax") else cls_name
 
+            print("cached_folder:", cached_folder, "cls_name:", cls_name)
+
             diffusers_module = importlib.import_module(__name__.split(".")[0])
             pipeline_class = getattr(diffusers_module, cls_name, None) if isinstance(cls_name, str) else None
 
@@ -1438,7 +1482,8 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                     }
                     DiffusionPipeline.download(connected_pipe_repo_id, **download_kwargs)
 
-            return cached_folder
+            return 
+        
 
         except FileNotFoundError:
             # Means we tried to load pipeline with `local_files_only=True` but the files have not been found in local cache.

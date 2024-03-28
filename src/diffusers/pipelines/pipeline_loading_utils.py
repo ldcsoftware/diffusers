@@ -499,8 +499,9 @@ def load_sub_model(
         loaded_sub_model = load_method(cached_folder, **loading_kwargs)
 
     if name == "unet" and acc:
-        return ModelAcc(name, 
-                        acc_endpoint, loaded_sub_model)
+        return UnetAcc(name, acc_endpoint, loaded_sub_model)
+    elif name == "vae" and acc:
+        return VaeAcc(name, acc_endpoint, loaded_sub_model)
     return loaded_sub_model
 
 class ModelAcc:
@@ -515,9 +516,11 @@ class ModelAcc:
     def __setattr__(self, name, value):
         setattr(self.model, name, value)
 
+
+class UnetAcc(ModelAcc):
     def __call__(self, *args, **kwargs):
-        print("ModelAcc args:", args)
-        print("ModelAcc kwargs:", kwargs)
+        print("UnetAcc args:", args)
+        print("UnetAcc kwargs:", kwargs)
 
         req = {
             "args":pickle.dumps(args),
@@ -527,8 +530,22 @@ class ModelAcc:
         req_data = bson.BSON.encode(req)
         resp = requests.post(self.endpoint, data = req_data)
         result = bson.BSON(resp.content).decode()
-        noise = pickle.loads(result["noise"])
-        return noise
+        return pickle.loads(result["result"])
+    
+class VaeAcc(ModelAcc):
+    def decode(self, *args, **kwargs):
+        print("VaeAcc args:", args)
+        print("VaeAcc kwargs:", kwargs)
+
+        req = {
+            "args":pickle.dumps(args),
+            "kwargs": pickle.dumps(kwargs),
+        }
+
+        req_data = bson.BSON.encode(req)
+        resp = requests.post(self.endpoint, data = req_data)
+        result = bson.BSON(resp.content).decode()
+        return pickle.loads(result["result"])
 
 def _fetch_class_library_tuple(module):
     # import it here to avoid circular import

@@ -393,7 +393,6 @@ def load_sub_model(
     low_cpu_mem_usage: bool,
     cached_folder: Union[str, os.PathLike],
     acc: bool,
-    acc_endpoint: str,
 ):
     """Helper method to load the module `name` from `library_name` and `class_name`"""
     # retrieve class candidates
@@ -498,10 +497,11 @@ def load_sub_model(
         # else load from the root directory
         loaded_sub_model = load_method(cached_folder, **loading_kwargs)
 
-    if name == "unet" and acc:
-        return UnetAcc(name, acc_endpoint, loaded_sub_model)
-    elif name == "vae" and acc:
-        return VaeAcc(name, acc_endpoint, loaded_sub_model)
+    if acc is not None :
+        if name == "unet":
+            return UnetAcc(name, acc, loaded_sub_model)
+        elif name == "vae":
+            return VaeAcc(name, acc, loaded_sub_model)
     return loaded_sub_model
 
 class ModelAcc:
@@ -533,11 +533,12 @@ class UnetAcc(ModelAcc):
         return pickle.loads(result["result"])
     
 class VaeAcc(ModelAcc):
-    def decode(self, *args, **kwargs):
+    def decode(self, z, *args, **kwargs):
         print("VaeAcc args:", args)
         print("VaeAcc kwargs:", kwargs)
 
         req = {
+            "z": pickle.dumps(z),
             "args":pickle.dumps(args),
             "kwargs": pickle.dumps(kwargs),
         }

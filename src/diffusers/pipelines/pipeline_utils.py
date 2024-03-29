@@ -632,8 +632,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         use_safetensors = kwargs.pop("use_safetensors", None)
         use_onnx = kwargs.pop("use_onnx", None)
         load_connected_pipeline = kwargs.pop("load_connected_pipeline", False)
-        acc_model = kwargs.pop("acc_model", None)
-        acc_endpoint = kwargs.pop("acc_endpoint", None)
+        model_acc = kwargs.pop("model_acc", None)
 
         if low_cpu_mem_usage and not is_accelerate_available():
             low_cpu_mem_usage = False
@@ -811,7 +810,9 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             is_pipeline_module = hasattr(pipelines, library_name)
             importable_classes = ALL_IMPORTABLE_CLASSES
             loaded_sub_model = None
-            acc = acc_model is not None and name in acc_model
+            acc = None 
+            if model_acc is not None and name in model_acc:
+                acc = model_acc[name]
 
             print("begin load sub model.", 
                   "name:",  name,
@@ -851,7 +852,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                     low_cpu_mem_usage=low_cpu_mem_usage,
                     cached_folder=cached_folder,
                     acc=acc,
-                    acc_endpoint=acc_endpoint,
                 )
                 logger.info(
                     f"Loaded {name} as {class_name} from `{name}` subfolder of {pretrained_model_name_or_path}."
@@ -1002,6 +1002,8 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                 device_mod.empty_cache()  # otherwise we don't see the memory savings (but they probably exist)
 
         all_model_components = {k: v for k, v in self.components.items() if isinstance(v, torch.nn.Module)}
+
+        print("enable_model_cpu_offload all_model_components:",all_model_components)
 
         self._all_hooks = []
         hook = None

@@ -500,7 +500,7 @@ class ModelAcc:
     def __init__(self, name, acc_endpoint, model):
         self.__dict__["endpoint"] = acc_endpoint + "/" + name
         self.__dict__["model"] = model
-        
+
         print("ModelAcc. endpoint:", self.endpoint)
 
     def __getattr__(self, name):
@@ -512,9 +512,6 @@ class ModelAcc:
 
 class UnetAcc(ModelAcc):
     def __call__(self, *args, **kwargs):
-        print("UnetAcc args:", args)
-        print("UnetAcc kwargs:", kwargs)
-
         req = {
             "args":pickle.dumps(args),
             "kwargs": pickle.dumps(kwargs),
@@ -526,12 +523,8 @@ class UnetAcc(ModelAcc):
         return pickle.loads(result["result"])
     
 class VaeAcc(ModelAcc):
-    def decode(self, z, *args, **kwargs):
-        print("VaeAcc args:", args)
-        print("VaeAcc kwargs:", kwargs)
-
+    def decode(self, *args, **kwargs):
         req = {
-            "z": pickle.dumps(z),
             "args":pickle.dumps(args),
             "kwargs": pickle.dumps(kwargs),
         }

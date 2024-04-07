@@ -160,6 +160,7 @@ class StableDiffusionPipeline(
     _optional_components = ["safety_checker", "feature_extractor", "image_encoder"]
     _exclude_from_cpu_offload = ["safety_checker"]
     _callback_tensor_inputs = ["latents", "prompt_embeds", "negative_prompt_embeds"]
+    _call_after_encode_prompt_impl = None
 
     def __init__(
         self,
@@ -928,14 +929,71 @@ class StableDiffusionPipeline(
         cost = time.time() - begin
         begin = time.time()
         print ("xxxxx Encode input prompt cost:", cost)
+        
+        call_after_encode_prompt = self.call_after_encode_prompt if self._call_after_encode_prompt_impl is None else self._call_after_encode_prompt_impl
+        return call_after_encode_prompt(
+            height, 
+            width, 
+            batch_size, 
+            num_inference_steps, 
+            timesteps, 
+            guidance_scale,
+            num_images_per_prompt,
+            eta,
+            generator,
+            latents,
+            prompt_embeds, 
+            negative_prompt_embeds,
+            ip_adapter_image,
+            ip_adapter_image_embeds,
+            output_type,
+            return_dict,
+            cross_attention_kwargs,
+            guidance_rescale,
+            clip_skip,
+            callback_on_step_end,
+            callback_on_step_end_tensor_inputs,
+        )
+
+    def call_after_encode_prompt(
+            self, 
+            height, 
+            width, 
+            batch_size, 
+            num_inference_steps, 
+            timesteps, 
+            guidance_scale,
+            num_images_per_prompt,
+            eta,
+            generator,
+            latents,
+            prompt_embeds, 
+            negative_prompt_embeds,
+            ip_adapter_image,
+            ip_adapter_image_embeds,
+            output_type,
+            return_dict,
+            cross_attention_kwargs,
+            guidance_rescale,
+            clip_skip,
+            callback_on_step_end,
+            callback_on_step_end_tensor_inputs,
+    ):
+        self._guidance_scale = guidance_scale
+        self._guidance_rescale = guidance_rescale
+        self._clip_skip = clip_skip
+        self._cross_attention_kwargs = cross_attention_kwargs
+        self._interrupt = False
+
+        callback = None
+        callback_steps = None
+
+        device = self._execution_device
 
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, device, timesteps)
 
-        cost = time.time() - begin
         begin = time.time()
-        print ("xxxxx Prepare timesteps cost:", cost)
-
 
         # 5. Prepare latent variables
         num_channels_latents = self.unet.config.in_channels

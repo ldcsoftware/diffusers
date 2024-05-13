@@ -277,6 +277,14 @@ def get_class_obj_and_candidates(
     """Simple helper method to retrieve class object of module as well as potential parent class objects"""
     component_folder = os.path.join(cache_dir, component_name)
 
+    print("get_class_obj_and_candidates",
+          "library_name:",library_name,
+          "class_name:", class_name,
+          "importable_classes:", importable_classes,
+          "pipelines:", pipelines,
+          "is_pipeline_module:", is_pipeline_module,
+          "component_name:", component_name,)
+
     if is_pipeline_module:
         pipeline_module = getattr(pipelines, library_name)
 
@@ -500,7 +508,6 @@ class ModelAcc:
     def __init__(self, name, acc_endpoint, model):
         self.__dict__["endpoint"] = acc_endpoint + "/" + name
         self.__dict__["model"] = model
-
         print("ModelAcc. endpoint:", self.endpoint)
 
     def __getattr__(self, name):

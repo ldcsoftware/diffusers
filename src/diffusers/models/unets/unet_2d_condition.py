@@ -1317,7 +1317,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
 
 class UNet2DConditionModelQ(UNet2DConditionModel):
     def __call__(self, sample, timestep, encoder_hidden_states, **kwargs):
-        print(f"sample:{sample.size()}, timestep:{timestep.size()}, cond:{encoder_hidden_states.size()}")
+        print(f"UNet2DConditionModelQ call sample:{sample.size()}, timestep:{timestep.size()}, cond:{encoder_hidden_states.size()}")
         super().__call__(sample, timestep, encoder_hidden_states, **kwargs)
         # print("args:", args)
         # print("kwargs:", kwargs)

@@ -1316,17 +1316,19 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
         return UNet2DConditionOutput(sample=sample)
 
 class UNet2DConditionModelQ(UNet2DConditionModel):
-    def __call__(self, *args, **kwargs):
-        print("args:", args)
-        print("kwargs:", kwargs)
+    def __call__(self, sample, timestep, encoder_hidden_states, **kwargs):
+        print(f"sample:{sample.size()}, timestep:{timestep.size()}, cond:{encoder_hidden_states.size()}")
+        super().__call__(sample, timestep, encoder_hidden_states, **kwargs)
+        # print("args:", args)
+        # print("kwargs:", kwargs)
 
-        req = {
-            "args":pickle.dumps(args),
-            "kwargs": pickle.dumps(kwargs),
-        }
+        # req = {
+        #     "args":pickle.dumps(args),
+        #     "kwargs": pickle.dumps(kwargs),
+        # }
 
-        req_data = bson.BSON.encode(req)
-        resp = requests.post("http://127.0.0.1:50101/unet", data = req_data)
-        result = bson.BSON(resp.content).decode()
-        noise = pickle.loads(result["noise"])
-        return noise
+        # req_data = bson.BSON.encode(req)
+        # resp = requests.post("http://127.0.0.1:50101/unet", data = req_data)
+        # result = bson.BSON(resp.content).decode()
+        # noise = pickle.loads(result["noise"])
+        # return noise

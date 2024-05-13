@@ -16,6 +16,7 @@
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+import time
 import numpy as np
 import PIL.Image
 import torch
@@ -1233,6 +1234,7 @@ class StableDiffusionControlNetPipeline(
                         controlnet_cond_scale = controlnet_cond_scale[0]
                     cond_scale = controlnet_cond_scale * controlnet_keep[i]
 
+                start_time = time.time()
                 down_block_res_samples, mid_block_res_sample = self.controlnet(
                     control_model_input,
                     t,
@@ -1242,6 +1244,9 @@ class StableDiffusionControlNetPipeline(
                     guess_mode=guess_mode,
                     return_dict=False,
                 )
+                end_time = time.time()
+                print("controlnet cost:{}, type_down:{} type_down_0:{}, type_mid:{}".format(
+                    end_time - start_time, type(down_block_res_samples), type(down_block_res_samples[0]), type(mid_block_res_sample)))
 
                 if guess_mode and self.do_classifier_free_guidance:
                     # Infered ControlNet only for the conditional batch.
@@ -1251,6 +1256,7 @@ class StableDiffusionControlNetPipeline(
                     mid_block_res_sample = torch.cat([torch.zeros_like(mid_block_res_sample), mid_block_res_sample])
 
                 # predict the noise residual
+                start_time = time.time()
                 noise_pred = self.unet(
                     latent_model_input,
                     t,
@@ -1262,6 +1268,8 @@ class StableDiffusionControlNetPipeline(
                     added_cond_kwargs=added_cond_kwargs,
                     return_dict=False,
                 )[0]
+                end_time = time.time()
+                print("unet cost:{}".format(end_time - start_time))
 
                 # perform guidance
                 if self.do_classifier_free_guidance:

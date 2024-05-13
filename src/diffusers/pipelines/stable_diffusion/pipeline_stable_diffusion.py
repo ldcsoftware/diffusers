@@ -1056,6 +1056,13 @@ class StableDiffusionPipeline(
                       "cross_attention_kwargs:", type(cross_attention_kwargs),
                       "added_cond_kwargs:", type(added_cond_kwargs),
                       )
+                
+                print("unet dtype",
+                      "latent_model_input:", latent_model_input.size(),
+                      "t:", t.size(),
+                      "tt:", t,
+                      "encoder_hidden_states:", prompt_embeds.size(),
+                      )
 
                 # predict the noise residual
                 noise_pred = self.unet(

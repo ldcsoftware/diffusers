@@ -262,6 +262,8 @@ class LMSDiscreteScheduler(SchedulerMixin, ConfigMixin):
         """
         self.num_inference_steps = num_inference_steps
 
+        print("self.config.timestep_spacing", self.config.timestep_spacing)
+
         # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891
         if self.config.timestep_spacing == "linspace":
             timesteps = np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps, dtype=np.float32)[
@@ -286,7 +288,9 @@ class LMSDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         sigmas = np.array(((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5)
         log_sigmas = np.log(sigmas)
+        print("set_timesteps", num_inference_steps, sigmas)
         sigmas = np.interp(timesteps, np.arange(0, len(sigmas)), sigmas)
+        print("set_timesteps", num_inference_steps, sigmas)
 
         if self.config.use_karras_sigmas:
             sigmas = self._convert_to_karras(in_sigmas=sigmas)

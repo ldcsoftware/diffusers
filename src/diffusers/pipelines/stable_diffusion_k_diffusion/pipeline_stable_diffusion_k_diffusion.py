@@ -588,8 +588,12 @@ class StableDiffusionKDiffusionPipeline(
         if do_classifier_free_guidance:
             prompt_embeds = torch.cat([negative_prompt_embeds, prompt_embeds])
 
+        print("self.scheduler.sigmas", self.scheduler.sigmas, "len", len(self.scheduler.sigmas))
+
         # 4. Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps, device=prompt_embeds.device)
+
+        print("self.scheduler.sigmas", self.scheduler.sigmas, "len", len(self.scheduler.sigmas))
 
         # 5. Prepare sigmas
         if use_karras_sigmas:
@@ -597,6 +601,7 @@ class StableDiffusionKDiffusionPipeline(
             sigma_max: float = self.k_diffusion_model.sigmas[-1].item()
             sigmas = get_sigmas_karras(n=num_inference_steps, sigma_min=sigma_min, sigma_max=sigma_max)
             sigmas = sigmas.to(device)
+            print("use_karras_sigmas", sigmas)
         else:
             sigmas = self.scheduler.sigmas
         sigmas = sigmas.to(prompt_embeds.dtype)
@@ -619,6 +624,8 @@ class StableDiffusionKDiffusionPipeline(
 
         # 7. Define model function
         def model_fn(x, t):
+            print("model_fn", t)
+
             latent_model_input = torch.cat([x] * 2)
             t = torch.cat([t] * 2)
 
@@ -640,6 +647,8 @@ class StableDiffusionKDiffusionPipeline(
             sampler_kwargs["generator"] = generator
 
         latents = self.sampler(model_fn, latents, sigmas, **sampler_kwargs)
+
+        print("type latents", type(latents))
 
         if not output_type == "latent":
             image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False)[0]
